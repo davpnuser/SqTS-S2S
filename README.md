@@ -1,5 +1,9 @@
 
 ![Header Animation](https://camo.githubusercontent.com/a63fd9333526efd7570e67b68bb7d40828e4f9abc865b43c0a4417b46be19554/68747470733a2f2f63617073756c652d72656e6465722e76657263656c2e6170702f6170693f747970653d776176696e67266865696768743d31303026636f6c6f723d6772616469656e74)
+
+> **Want to showcase SqTS?**
+> Have you made a video of **SqTS** in action? I’d love to see it!
+> You can create a issue with the **showcase** tag and i will personally review and add your video to this repo.
 # SqTS Real-time S2S Engine
 > ***Fun fact:** SqTS stands for S quadruple T S, which just means STT>TTS.*
 
@@ -20,6 +24,7 @@ That means that your data is there as long as you dont interrupt the **DRAM powe
 | No GPU required. | A NVidia RTX 2K+ GPU (8+ GBs of VRAM) |
 | 4 GBs of RAM. | 16 GBs of RAM. |
 | 500+ MBs of storage. (Tiny Model) | 8+ GBs of storage. (Any Model) |
+
 # Filtering Engine
 
 > ***Tip:** You can make a comment by placing a hash in the start of a line.*
