@@ -4,6 +4,9 @@
 > **Want to showcase SqTS?**
 > Have you made a video of **SqTS** in action? I’d love to see it!
 > You can create a issue with the **showcase** tag and i will personally review and add your video to this repo.
+
+> ***Tip:** To list installed voices, just run the program with the "-list-voices" parameter.*
+
 # SqTS Real-time S2S Engine
 > ***Fun fact:** SqTS stands for S quadruple T S, which just means STT>TTS.*
 
