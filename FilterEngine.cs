@@ -1,6 +1,6 @@
-﻿namespace StS_Demo;
+﻿using System.Text.RegularExpressions;
 
-using System.Text.RegularExpressions;
+namespace StS_Demo;
 
 public class FilterEngine
 {
