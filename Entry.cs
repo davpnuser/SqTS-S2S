@@ -1,4 +1,4 @@
-﻿using StS_Demo;
+﻿using SqTS;
 using Whisper.net.Ggml;
 using Whisper.net.LibraryLoader;
 

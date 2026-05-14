@@ -1,6 +1,6 @@
 ﻿using System.Speech.Synthesis;
 
-namespace StS_Demo;
+namespace SqTS;
 
 public class VoiceSynth : IDisposable
 {

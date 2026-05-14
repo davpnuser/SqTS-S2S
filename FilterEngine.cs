@@ -1,6 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 
-namespace StS_Demo;
+namespace SqTS;
 
 public class FilterEngine
 {

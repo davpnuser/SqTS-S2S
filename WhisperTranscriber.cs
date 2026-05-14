@@ -1,7 +1,7 @@
 ﻿using Whisper.net;
 using Whisper.net.Ggml;
 
-namespace StS_Demo;
+namespace SqTS;
 
 public class WhisperTranscriber : IDisposable
 {

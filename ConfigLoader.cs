@@ -1,4 +1,4 @@
-﻿namespace StS_Demo;
+﻿namespace SqTS;
 
 public static class ConfigLoader
 {
@@ -10,14 +10,14 @@ public static class ConfigLoader
         foreach (string line in lines)
         {
             string trimmed = line.TrimStart();
-
+                
             if (trimmed.StartsWith("::") || trimmed.IsWhiteSpace())
                 continue;
 
             if (trimmed.StartsWith('-'))
             {
                 if (!keys.TryGetValue(currentKeyName, out Value? currentValue) || !currentValue.IsList)
-                    throw new Exception("Error encountered! errno 1");
+                    throw new Exception("Syntax error! (Errno 1) Did you forget to put a parent list mode key? (List mode not enabled!)");
 
                 string final = line[1..].Trim();
                 currentValue.Items.Add(final);
@@ -27,7 +27,7 @@ public static class ConfigLoader
                 string[] parts = trimmed.Split(':',2);
 
                 if (parts.Length != 2)
-                    throw new Exception("Error encountered! errno 2");
+                    throw new Exception("Syntax error! (Errno 2) Did you forget to put a colon? (Key-Value pair link missing!)");
 
                 currentKeyName = parts[0];
                 Value currentValue = new();

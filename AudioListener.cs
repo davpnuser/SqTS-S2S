@@ -1,7 +1,7 @@
 ﻿using NAudio.Utils;
 using NAudio.Wave;
 
-namespace StS_Demo;
+namespace SqTS;
 
 public class AudioListener : IDisposable
 {
