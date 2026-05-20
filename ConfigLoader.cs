@@ -2,7 +2,7 @@
 
 public static class ConfigLoader
 {
-    public static List<Value> ParseLines(IEnumerable<string> lines)
+    public static Dictionary<string, Value> ParseLines(IEnumerable<string> lines)
     {
         Dictionary<string, Value> keys = [];
         string currentKeyName = string.Empty;
@@ -43,14 +43,13 @@ public static class ConfigLoader
             }
         }
 
-        List<Value> values = [.. keys.Values];
-        return values;
+        return keys;
     }
 }
 
 public class Value
 {
     public bool IsList { get; set; } = false;
-    public List<string> Items { get; } = [];
     public string ValueString { get; set; } = "";
+    public List<string> Items { get; } = [];
 }

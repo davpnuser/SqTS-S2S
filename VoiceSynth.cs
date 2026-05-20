@@ -15,11 +15,11 @@ public class VoiceSynth : IDisposable
         _synth.SelectVoice(voiceName);
     }
 
-    public List<string> GetVoices()
+    public static List<string> GetVoices()
     {
         List<string> voiceList = [];
 
-        foreach (var item in _synth.GetInstalledVoices())
+        foreach (var item in new SpeechSynthesizer().GetInstalledVoices())
             voiceList.Add(item.VoiceInfo.Name);
 
         return voiceList;

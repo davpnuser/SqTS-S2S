@@ -1,150 +1,175 @@
-﻿using System.Text.RegularExpressions;
+﻿using Whisper.net.Ggml;
 
 namespace SqTS;
 
+public record FilterResult(bool Blocked, string Text);
+
 public class FilterEngine
 {
-    private readonly List<FilterRule> _rules = [];
-    public VrxSettings Settings { get; private set; } = new();
+    public FilteringSettings Settings { get; private set; } = new();
+    private readonly List<IFilterRule> _rules = [];
 
-    public void LoadConfig(string filePath)
+    public void LoadConfig(string path)
     {
+        if (!File.Exists(path)) return;
+
+        var configData = ConfigLoader.ParseLines(File.ReadAllLines(path));
+        Settings = ConfigurationMapper.Map(configData);
         _rules.Clear();
-        var lines = File.ReadAllLines(filePath);
 
-        foreach (var line in lines)
+        _rules.Add(new SimpleRule(
+            new ConfidenceEvent(new Value { ValueString = Settings.MinConfidence.ToString() }),
+            new BlockAction())
+        );
+
+        // 2. Truly Modular Pairing
+        foreach (var (key, val) in configData)
         {
-            var trimmed = line.Trim();
-            if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith('#')) continue;
-            
-            if (trimmed.Contains(':') && !IsCommand(trimmed))
+            if (key.StartsWith("on_"))
             {
-                ParseSetting(trimmed);
+                var ev = CreateEvent(key, val);
+                var act = DetermineAction(configData);
+
+                if (ev != null && act != null)
+                {
+                    _rules.Add(new SimpleRule(ev, act));
+                }
             }
-            else
-            {
-                var rule = ParseRule(trimmed);
-                if (rule != null) _rules.Add(rule);
-            }
         }
     }
 
-    private static bool IsCommand(string line)
+    private static IFilterEvent? CreateEvent(string key, Value val) => key switch
     {
-        var upper = line.ToUpper();
-        return upper.Contains("CONTAINS:") || upper.Contains("EQUALS:") ||
-               upper.Contains("STARTS:") || upper.Contains("ENDS:") || upper.Contains("REGEX:");
+        "on_contains" => new ContainsEvent(val),
+        "on_confidence" => new ConfidenceEvent(val),
+        _ => null
+    };
+
+    private static IFilterAction? DetermineAction(Dictionary<string, Value> data)
+    {
+        if (data.TryGetValue("replace_word", out var target))
+        {
+            var replacement = data.GetValueOrDefault("with", new Value { ValueString = "" });
+            return new ReplaceAction(target, replacement);
+        }
+
+        if (data.TryGetValue("block", out var b) && b.ValueString.Equals("true", StringComparison.OrdinalIgnoreCase))
+        {
+            return new BlockAction();
+        }
+
+        return null;
     }
 
-    private void ParseSetting(string line)
+    public FilterResult Process(string text, float probability)
     {
-        var parts = line.Split(':', 2);
-        if (parts.Length < 2) return;
-
-        var key = parts[0].Trim().ToUpper();
-        var val = parts[1].Trim();
-
-        switch (key)
-        {
-            case "NAME": Settings.Name = val; break;
-            case "COMMENT": Settings.Comment = val; break;
-            case "AUTHOR": Settings.Author = val; break;
-            case "CONFIDENCE": Settings.Confidence = int.Parse(val) / 100f; break;
-            case "RATE": Settings.Rate = int.Parse(val); break;
-            case "VOICE": Settings.Voice = val; break;
-            case "VOLUME": Settings.Volume = float.Parse(val); break;
-            case "SILENCE": Settings.Silence = int.Parse(val); break;
-            case "SHORTNESS": Settings.Shortness = int.Parse(val); break;
-            case "MODEL": Settings.Model = val; break;
-        }
-    }
-
-    private static FilterRule? ParseRule(string line)
-    {
-        var rule = new FilterRule();
-
-        if (line.StartsWith("NOT ", StringComparison.OrdinalIgnoreCase))
-        {
-            rule.IsInverted = true;
-            line = line[4..];
-        }
-
-        var parts = line.Split(':', 2);
-        if (parts.Length < 2) return null;
-
-        var cmdPart = parts[0].Trim().ToUpper();
-        var target = parts[1].Trim();
-
-        if (cmdPart.Contains("BAR"))
-        {
-            var match = Regex.Match(cmdPart, @"BAR (\d+)");
-            if (match.Success) rule.MinConfidence = int.Parse(match.Groups[1].Value) / 100f;
-        }
-
-        if (cmdPart.Contains("LIMIT"))
-        {
-            var match = Regex.Match(cmdPart, @"LIMIT (\d+)");
-            if (match.Success) rule.MaxConfidence = int.Parse(match.Groups[1].Value) / 100f;
-        }
-
-        if (cmdPart.Contains("CONTAINS")) rule.Command = FilterCommand.CONTAINS;
-        else if (cmdPart.Contains("EQUALS")) rule.Command = FilterCommand.EQUALS;
-        else if (cmdPart.Contains("STARTS")) rule.Command = FilterCommand.STARTS;
-        else if (cmdPart.Contains("ENDS")) rule.Command = FilterCommand.ENDS;
-        else if (cmdPart.Contains("REGEX")) rule.Command = FilterCommand.REGEX;
-
-        rule.Target = target.ToLowerInvariant();
-        return rule;
-    }
-
-    public bool ShouldBlock(string text, float confidence)
-    {
-        if (confidence < Settings.Confidence) return true;
-
-        string cleanText = text.Trim().ToLowerInvariant();
-
+        string currentText = text;
         foreach (var rule in _rules)
         {
-            if (confidence < rule.MinConfidence || confidence > rule.MaxConfidence) continue;
-
-            bool match = rule.Command switch
-            {
-                FilterCommand.EQUALS => cleanText == rule.Target,
-                FilterCommand.CONTAINS => cleanText.Contains(rule.Target),
-                FilterCommand.STARTS => cleanText.StartsWith(rule.Target),
-                FilterCommand.ENDS => cleanText.EndsWith(rule.Target),
-                FilterCommand.REGEX => Regex.IsMatch(cleanText, rule.Target),
-                _ => false
-            };
-
-            if (rule.IsInverted) match = !match;
-            if (match) return true;
+            var result = rule.Evaluate(currentText, probability);
+            if (result.Blocked) return result;
+            currentText = result.Text;
         }
-        return false;
+        return new FilterResult(false, currentText);
     }
 }
 
-public class VrxSettings
+public interface IFilterRule { FilterResult Evaluate(string text, float prob); }
+public interface IFilterEvent { bool Matches(string text, float prob); }
+public interface IFilterAction { FilterResult Execute(string text); }
+
+public class SimpleRule(IFilterEvent ev, IFilterAction action) : IFilterRule
 {
-    public string Name { get; set; } = "Untitled Profile";
-    public string Comment { get; set; } = "";
-    public string Author { get; set; } = "Unknown";
-    public float Confidence { get; set; } = 0.45f;
-    public int Rate { get; set; } = 2;
-    public string Voice { get; set; } = "Microsoft Guy Native";
-    public float Volume { get; set; } = 0.02f;
-    public int Silence { get; set; } = 600;
-    public int Shortness { get; set; } = 8000;
-    public string Model { get; set; } = "Base";
+    public FilterResult Evaluate(string text, float prob) =>
+        ev.Matches(text, prob) ? action.Execute(text) : new FilterResult(false, text);
 }
 
-public enum FilterCommand { NONE, EQUALS, CONTAINS, STARTS, ENDS, REGEX }
-
-public class FilterRule
+// --- Events ---
+public record ContainsEvent(Value Data) : IFilterEvent
 {
-    public FilterCommand Command { get; set; } = FilterCommand.NONE;
-    public string Target { get; set; } = "";
-    public bool IsInverted { get; set; }
-    public float MinConfidence { get; set; } = 0f;
-    public float MaxConfidence { get; set; } = 1f;
+    public bool Matches(string text, float prob)
+    {
+        // If it's a list (e.g., - word1 - word2), check if ANY item matches
+        if (Data.IsList)
+        {
+            return Data.Items.Any(item => text.Contains(item, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // If it's just a normal string (e.g., on_contains: hello), check just that one
+        return text.Contains(Data.ValueString, StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+public record ConfidenceEvent(Value Data) : IFilterEvent
+{
+    public bool Matches(string text, float prob)
+    {
+        float threshold = float.TryParse(Data.ValueString, out var f) ? f : 0;
+        return prob < threshold;
+    }
+}
+
+// --- Actions ---
+public class BlockAction : IFilterAction
+{
+    public FilterResult Execute(string text) => new(true, text);
+}
+
+public class ReplaceAction(Value Target, Value Replacement) : IFilterAction
+{
+    public FilterResult Execute(string text)
+    {
+        string result = text;
+        if (Target.IsList)
+        {
+            for (int i = 0; i < Target.Items.Count; i++)
+            {
+                string find = Target.Items[i];
+                string replaceWith = (Replacement.IsList && i < Replacement.Items.Count)
+                    ? Replacement.Items[i]
+                    : Replacement.ValueString;
+
+                result = result.Replace(find, replaceWith, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        else
+        {
+            result = result.Replace(Target.ValueString, Replacement.ValueString, StringComparison.OrdinalIgnoreCase);
+        }
+        return new FilterResult(false, result.Trim());
+    }
+}
+
+public static class ConfigurationMapper
+{
+    public static FilteringSettings Map(Dictionary<string, Value> data) => new()
+    {
+        ConfigName = Get(data, "name", "Unnamed"),
+        ConfigAuthor = Get(data, "author", "Unknown"),
+        ConfigDescription = Get(data, "description", "Unknown"),
+        SttModel = Enum.TryParse<GgmlType>(Get(data, "stt_model", "TinyEn"), true, out var m) ? m : GgmlType.TinyEn,
+        TtsVoice = Get(data, "tts_voice", "Microsoft Zira Desktop"),
+        SpeakingRate = int.TryParse(Get(data, "speaking_rate", "0"), out var r) ? r : 0,
+        MinVolume = float.TryParse(Get(data, "min_volume", "0.02"), out var v) ? v : 0.02f,
+        SilenceWait = int.TryParse(Get(data, "silence_wait", "600"), out var s) ? s : 600,
+        MinConfidence = float.TryParse(Get(data, "min_confidence", "0.45"), out var c) ? c : 0.45f,
+        MinShortness = int.TryParse(Get(data, "min_shortness", "8000"), out var sh) ? sh : 8000
+    };
+
+    private static string Get(Dictionary<string, Value> d, string k, string def)
+        => d.TryGetValue(k, out var v) ? v.ValueString : def;
+}
+
+public class FilteringSettings
+{
+    public string ConfigName { get; set; } = "";
+    public string ConfigAuthor { get; set; } = "";
+    public string ConfigDescription { get; set; } = "";
+    public GgmlType SttModel { get; set; } = GgmlType.TinyEn;
+    public float MinConfidence { get; set; } = 0.45f;
+    public string TtsVoice { get; set; } = "Microsoft Zira Desktop";
+    public int SpeakingRate { get; set; } = 0;
+    public int SilenceWait { get; set; } = 600;
+    public int MinShortness { get; set; } = 8000;
+    public float MinVolume { get; set; } = 0.02f;
 }
