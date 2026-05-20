@@ -85,7 +85,7 @@ async void LoadConfig()
         }
         else
         {
-            Console.WriteLine($"[WARN] {configPath} missing. Using defaults.");
+            Console.WriteLine($"[WARN] {configPath} missing. Using defaults. (or previous)");
         }
 
         // Transcriber stuff
