@@ -1,6 +1,9 @@
 
 ![Header Animation](https://camo.githubusercontent.com/a63fd9333526efd7570e67b68bb7d40828e4f9abc865b43c0a4417b46be19554/68747470733a2f2f63617073756c652d72656e6465722e76657263656c2e6170702f6170693f747970653d776176696e67266865696768743d31303026636f6c6f723d6772616469656e74)
 
+> **STATUS UPDATE**
+> I am **working** on SqTS. Updates are on the way. I just haven't had much opportunities to code in the past week. You can expect 2+ updates for the next week tho.
+
 > **Want to showcase SqTS?**
 > Have you made a video of **SqTS** in action? I’d love to see it!
 > You can create a issue with the **showcase** tag and i will personally review and add your video to this repo.
