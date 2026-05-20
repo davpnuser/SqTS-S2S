@@ -5,19 +5,14 @@ namespace SqTS;
 public class FilterEngine
 {
     public FilteringSettings Settings = new();
-    public static Oopsies Process(string _, float __) => new();
+    public Oopsies Process(string _, float __) => new(true, "");
 
-    public static void LoadConfig(string _) { }
+    public void LoadConfig(string _) { }
 
     /* Ha, yes! i AM rewriting this. */
 }
 
-public record Oopsies
-{
-    public bool Blocked = false;
-    public string Text = string.Empty;
-}
-
+public record Oopsies(bool Blocked,string Text);
 public class FilteringSettings
 {
     public string ConfigName { get; set; } = "";
